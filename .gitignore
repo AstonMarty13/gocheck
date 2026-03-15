@@ -1,0 +1,6 @@
+bin/
+*.exe
+*.out
+vendor/
+.vscode/
+gocheck
