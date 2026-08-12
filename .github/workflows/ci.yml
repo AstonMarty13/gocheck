@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Build & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "These files are not gofmt'd:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test (race detector)
+        run: go test -race -coverprofile=coverage.out ./...
+
+      - name: Coverage summary
+        run: go tool cover -func=coverage.out | tail -1
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t gocheck:ci .
+
+      - name: Smoke test the image
+        run: |
+          printf 'https://example.com\n' > sites.txt
+          docker run -d --name gocheck-ci -p 8080:8080 \
+            -v "$PWD/sites.txt:/etc/gocheck/sites.txt:ro" gocheck:ci
+          for i in $(seq 1 15); do
+            if curl -fsS http://localhost:8080 >/dev/null; then
+              echo "dashboard is up"
+              docker rm -f gocheck-ci
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "dashboard did not come up in time"
+          docker logs gocheck-ci
+          docker rm -f gocheck-ci
+          exit 1
