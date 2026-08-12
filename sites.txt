@@ -1,5 +1,8 @@
-https://google.com
+# One URL per line. Blank lines and lines starting with # are ignored.
+https://example.com
 https://github.com
-https://apple.com
 https://wikipedia.org
-https://pims.am-vintage.com
+
+# .invalid is a reserved TLD that can never resolve — kept here so a fresh
+# checkout always shows what a DOWN row looks like.
+https://always-down.invalid
