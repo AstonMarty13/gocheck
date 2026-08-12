@@ -57,7 +57,7 @@ func TestCheck(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(tc.statusCode)
 			}))
 			defer srv.Close()
@@ -90,7 +90,7 @@ func TestCheck(t *testing.T) {
 // wikipedia.org reject Go's default user agent with a 403.
 func TestCheckSendsUserAgent(t *testing.T) {
 	got := make(chan string, 1)
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		got <- r.Header.Get("User-Agent")
 	}))
 	defer srv.Close()
@@ -128,7 +128,7 @@ func TestCheckUnreachable(t *testing.T) {
 // client timeout a hanging site would block its polling goroutine forever.
 func TestCheckTimeout(t *testing.T) {
 	release := make(chan struct{})
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		<-release
 	}))
 	defer func() {
@@ -185,7 +185,7 @@ func TestSnapshotIsSortedAndCopied(t *testing.T) {
 // TestConcurrentAccess is the reason CI runs with -race: checks and dashboard
 // reads happen simultaneously in production.
 func TestConcurrentAccess(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer srv.Close()
@@ -205,12 +205,16 @@ func TestConcurrentAccess(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+
+	if n := len(m.Snapshot()); n != 1 {
+		t.Fatalf("snapshot has %d entries after concurrent access, want 1", n)
+	}
 }
 
 func TestStartStopsOnContextCancel(t *testing.T) {
 	var hits int
 	var mu sync.Mutex
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		mu.Lock()
 		hits++
 		mu.Unlock()

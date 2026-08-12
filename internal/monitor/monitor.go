@@ -4,6 +4,7 @@ package monitor
 import (
 	"bufio"
 	"context"
+	"io"
 	"net/http"
 	"os"
 	"sort"
@@ -94,7 +95,11 @@ func (m *Monitor) Check(ctx context.Context, url string) {
 		m.record(url, false, 0, elapsed)
 		return
 	}
-	resp.Body.Close()
+	// Drain a bounded amount before closing so the connection can be reused
+	// on the next tick instead of being torn down.
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
+	_ = resp.Body.Close()
+
 	m.record(url, resp.StatusCode < 400, resp.StatusCode, elapsed)
 }
 
@@ -132,7 +137,7 @@ func LoadSites(path string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var urls []string
 	scanner := bufio.NewScanner(f)
