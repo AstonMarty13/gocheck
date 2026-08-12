@@ -3,7 +3,6 @@
 A small website uptime monitor with a web dashboard. No external dependencies —
 Go standard library only.
 
-![Dashboard](docs/screenshot.png)
 
 ## Features
 
