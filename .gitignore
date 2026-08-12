@@ -3,4 +3,6 @@ bin/
 *.out
 vendor/
 .vscode/
+.DS_Store
+coverage.out
 gocheck
